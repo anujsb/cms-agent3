@@ -104,9 +104,33 @@ function detectIncidentIntent(message: string): { isIncidentIntent: boolean; cat
   return { isIncidentIntent: false };
 }
 
+// Helper function to detect renewal intent
+function detectRenewalIntent(message: string): boolean {
+  const renewalKeywords = ['renew', 'renewal', 'extend', 'continue','expiring','expire'];
+  return renewalKeywords.some(keyword => message.toLowerCase().includes(keyword));
+}
+
+// Helper function to extract renewal details
+function extractRenewalDetails(message: string): { productName: string; plan: string } | null {
+  const productMatch = message.match(/renew my (.*?) plan/i);
+  const planMatch = message.match(/with the (.*?) option/i);
+  
+  if (productMatch && planMatch) {
+    return {
+      productName: productMatch[1].trim(),
+      plan: planMatch[1].trim()
+    };
+  }
+  return null;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { message, userId } = await req.json();
+
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+    }
 
     // Fetch user data from the database
     const user = await userRepository.getUserById(userId);
@@ -115,6 +139,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // Check for expiring plans
+    const expiringPlan = await userRepository.checkExpiringPlans(userId);
+    
     // Check for incident intent first
     const incidentIntent = detectIncidentIntent(message);
     
@@ -188,7 +215,55 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Handle renewal request
+    const hasRenewalIntent = detectRenewalIntent(message);
+    if (hasRenewalIntent) {
+      const renewalDetails = extractRenewalDetails(message);
+      if (renewalDetails) {
+        try {
+          // Create a new order for renewal
+          const order = await userRepository.createOrder({
+            userId,
+            productName: renewalDetails.productName,
+            plan: renewalDetails.plan,
+            status: 'pending'
+          });
+
+          return NextResponse.json({
+            reply: `I've initiated the renewal process for your ${renewalDetails.productName} plan with the ${renewalDetails.plan} option. Your order ID is ${order.id}. Would you like me to confirm the renewal now?`,
+            orderId: order.id,
+            hasRenewalIntent: true,
+            renewalDetails,
+            isOrderIntent: true,
+            productName: renewalDetails.productName,
+            plan: renewalDetails.plan
+          });
+        } catch (error) {
+          console.error("Error processing renewal:", error);
+          return NextResponse.json({
+            reply: "I'm sorry, but there was an error processing your renewal request. Please try again later or contact our customer service at 1200.",
+            hasRenewalIntent: false,
+            showCallButton: true
+          });
+        }
+      }
+    }
+
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    // Prepare expiring plan information for the prompt
+    let expiringPlanInfo = "";
+    if (expiringPlan) {
+      expiringPlanInfo = `
+      
+    EXPIRING PLAN INFORMATION:
+    The user has a ${expiringPlan.productName} plan with the ${expiringPlan.plan} option that will expire in ${expiringPlan.daysUntilExpiration} days.
+    If the user's query is not related to plan renewal, do not mention this information.
+    If the user's query is complete and they haven't mentioned anything about renewing their plan, you can add a note at the end of your response like this:
+    
+    "By the way, I noticed your ${expiringPlan.productName} plan with the ${expiringPlan.plan} option will expire in ${expiringPlan.daysUntilExpiration} days. Would you like to renew it?"
+    `;
+    }
 
     const prompt = `
     You are a helpful and friendly customer care bot for Odido, a Dutch telecom company. Your role is to assist users with queries about their telecom services in clear and simple language. Always be empathetic and understanding, especially when users seem confused.
@@ -211,6 +286,7 @@ export async function POST(req: NextRequest) {
       Available products: SIM, Phone, Internet, TV
       Available plans: Basic, Premium, Unlimited, Family` 
       : ""}
+    ${expiringPlanInfo}
     
     FORMATTING RULES (VERY IMPORTANT):
     1. Use compact markdown formatting with minimal spacing
@@ -264,12 +340,13 @@ export async function POST(req: NextRequest) {
       isOrderIntent: orderIntent.isOrderIntent, // Include order intent in the response
       productName: orderIntent.productName || null,
       plan: orderIntent.plan || null,
+      hasExpiringPlan: !!expiringPlan,
+      expiringPlan,
+      hasRenewalIntent,
+      renewalDetails: hasRenewalIntent ? extractRenewalDetails(message) : null
     });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json(
-      { error: "Something went wrong" },
-      { status: 500 }
-    );
+    console.error('Error in chat API:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

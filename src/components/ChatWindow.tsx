@@ -75,6 +75,12 @@ interface Message {
   incidentId?: string;
   showIncidentPrompt?: boolean;
   showIncidentSelector?: boolean;
+  hasExpiringPlan?: boolean;
+  expiringPlan?: {
+    productName: string;
+    plan: string;
+    daysUntilExpiration: number;
+  } | null;
 }
 
 interface ChatWindowProps {
@@ -236,7 +242,16 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
         showCallButton: userAskingForCare || needsRealCustomerCare(data.reply), // Show call button if user is asking for care or bot indicates need for real person
         isIncidentCreated: data.incidentCreated,
         incidentId: data.incidentId,
+        hasExpiringPlan: data.hasExpiringPlan || false,
+        expiringPlan: data.expiringPlan || null,
       };
+
+      // Handle renewal response
+      if (data.hasRenewalIntent && data.renewalDetails) {
+        // If renewal details are provided, show the order selector with the suggested product
+        botMessage.showOrderSelector = true;
+        botMessage.suggestedProduct = data.renewalDetails.productName;
+      }
 
       if (data.orderPlaced && data.orderId) {
         setRecentOrderId(data.orderId);
@@ -306,6 +321,15 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
       );
     }
   };
+
+  // Add a handler for renewal confirmation
+  const handleRenewalConfirmation = async (product: string, plan: string) => {
+    // Pre-fill the input with a renewal confirmation message
+    setInput(`Confirm order: Yes, product: ${product}, plan: ${plan}`);
+    // Send the message automatically
+    await handleSend();
+  };
+
   const handleDeclineTerms = () => {
     setPendingOrder(null);
 
@@ -961,6 +985,54 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
                         </Button>
                       </div>
                     )}
+
+                    {/* Add renewal confirmation button */}
+                    {msg.text.includes("Would you like me to confirm the renewal now?") && msg.orderId && (
+                      <div className="mt-3 flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="bg-green-50 text-green-600 hover:bg-green-100 border border-green-200"
+                          onClick={() => {
+                            // Extract product and plan from the message
+                            const productMatch = msg.text.match(/your (.*?) plan/i);
+                            const planMatch = msg.text.match(/with the (.*?) option/i);
+                            
+                            if (productMatch && planMatch) {
+                              const product = productMatch[1].trim();
+                              const plan = planMatch[1].trim();
+                              handleRenewalConfirmation(product, plan);
+                            } else {
+                              // Fallback to showing the order selector
+                              setMessages(prev => 
+                                prev.map(m => 
+                                  m === msg ? { ...m, showOrderSelector: true } : m
+                                )
+                              );
+                            }
+                          }}
+                        >
+                          <CheckCircle size={14} className="mr-2" />
+                          Confirm Renewal
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-gray-600"
+                          onClick={() => {
+                            // Show the order selector as a fallback
+                            setMessages(prev => 
+                              prev.map(m => 
+                                m === msg ? { ...m, showOrderSelector: true } : m
+                              )
+                            );
+                          }}
+                        >
+                          Choose Different Plan
+                        </Button>
+                      </div>
+                    )}
+
                     {msg.showIncidentPrompt && (
                       <div className="mt-3 flex space-x-2">
                         <Button
@@ -989,6 +1061,39 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
                           prev.map(m => ({ ...m, showIncidentSelector: false }))
                         )}
                       />
+                    )}
+                    
+                    {/* Add renewal button for expiring plans */}
+                    {msg.hasExpiringPlan && msg.expiringPlan && (
+                      <div className="mt-3 flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="bg-green-50 text-green-600 hover:bg-green-100 border border-green-200"
+                          onClick={() => {
+                            // Pre-fill the input with a renewal request
+                            setInput(`I want to renew my ${msg.expiringPlan?.productName} plan with the ${msg.expiringPlan?.plan} option.`);
+                          }}
+                        >
+                          <RotateCw size={14} className="mr-2" />
+                          Renew Plan
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-gray-600"
+                          onClick={() => {
+                            // Remove the expiring plan notification from this message
+                            setMessages(prev => 
+                              prev.map(m => 
+                                m === msg ? { ...m, hasExpiringPlan: false, expiringPlan: null } : m
+                              )
+                            );
+                          }}
+                        >
+                          Dismiss
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </div>

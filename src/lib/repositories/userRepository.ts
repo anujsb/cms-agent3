@@ -1,209 +1,3 @@
-// // lib/repositories/userRepository.ts
-// import { db } from '../db';
-// import { users, orders, incidents, invoices, products } from '../schema';
-// import { eq } from 'drizzle-orm';
-// import { v4 as uuidv4 } from 'uuid';
-
-// export interface UserWithDetails {
-//   id: string;
-//   name: string;
-//   phoneNumber: string;
-//   orders: {
-//     orderId: string;
-//     productName: string;
-//     inServiceDate: string;
-//     outServiceDate: string | null; // Nullable if not set
-//     plan: string;
-//     status: string;
-//   }[];
-//   incidents: {
-//     incidentId: string;
-//     date: string;
-//     description: string;
-//     status: string;
-//   }[];
-//   invoices: {
-//     id: number;
-//     periodStartDate: string;
-//     periodEndDate: string;
-//     price: string;
-//     adjustment: string | null;
-//   }[];
-// }
-
-// export class UserRepository {
-//   // Get all users (basic info only)
-//   async getAllUsers() {
-//     return db.select({
-//       id: users.externalId,
-//       name: users.name,
-//       phoneNumber: users.phoneNumber,
-//     }).from(users);
-//   }
-
-//   // Get a user by their external ID with all details
-//   async getUserById(externalId: string): Promise<UserWithDetails | null> {
-//     // Get the user
-//     const userResults = await db.select().from(users).where(eq(users.externalId, externalId));
-    
-//     if (userResults.length === 0) {
-//       return null;
-//     }
-    
-//     const user = userResults[0];
-    
-//     // Get the user's orders
-//     const userOrders = await db.select({
-//       orderId: orders.orderId,
-//       productName: orders.productName,
-//       inServiceDate: orders.inServiceDate,
-//       outServiceDate: orders.outServiceDate,
-//       plan: orders.plan,
-//       status: orders.status,
-//     }).from(orders).where(eq(orders.userId, user.id));
-    
-//     // Get the user's incidents
-//     const userIncidents = await db.select({
-//       incidentId: incidents.incidentId,
-//       date: incidents.date,
-//       description: incidents.description,
-//       status: incidents.status,
-//     }).from(incidents).where(eq(incidents.userId, user.id));
-    
-//     // Get the user's invoices
-//     const userInvoices = await db.select({
-//       id: invoices.id,
-//       periodStartDate: invoices.periodStartDate,
-//       periodEndDate: invoices.periodEndDate,
-//       price: invoices.price,
-//       adjustment: invoices.adjustment,
-//     }).from(invoices).where(eq(invoices.userId, user.id));
-    
-//     // Format dates for frontend display
-//     const formattedOrders = userOrders.map(order => ({
-//       ...order,
-//       inServiceDate: order.inServiceDate ? new Date(order.inServiceDate).toISOString().split('T')[0] : '',
-//       outServiceDate: order.outServiceDate ? new Date(order.outServiceDate).toISOString().split('T')[0] : null,
-//     }));
-    
-//     const formattedIncidents = userIncidents.map(incident => ({
-//       ...incident,
-//       date: new Date(incident.date).toISOString().split('T')[0]
-//     }));
-    
-//     const formattedInvoices = userInvoices.map(invoice => ({
-//       ...invoice,
-//       periodStartDate: new Date(invoice.periodStartDate).toISOString().split('T')[0],
-//       periodEndDate: new Date(invoice.periodEndDate).toISOString().split('T')[0]
-//     }));
-    
-//     // Return the user with their orders and incidents
-//     return {
-//       id: user.externalId,
-//       name: user.name,
-//       phoneNumber: user.phoneNumber,
-//       orders: formattedOrders,
-//       incidents: formattedIncidents,
-//       invoices: formattedInvoices,
-//     };
-//   }
-
-//   // Create a new user
-//   async createUser(name: string, email: string, phoneNumber: string) {
-//     const externalId = uuidv4();
-//     await db.insert(users).values({
-//       externalId,
-//       name,
-//       email,
-//       phoneNumber,
-//     });
-//     return externalId;
-//   }
-
-//   // Get product by name or create if it doesn't exist
-//   async getOrCreateProduct(productName: string, price: string = "0.00") {
-//     // Try to find the product first
-//     const productResults = await db.select().from(products).where(eq(products.productName, productName));
-    
-//     if (productResults.length > 0) {
-//       return productResults[0].id;
-//     }
-    
-//     // If product doesn't exist, create it
-//     const result = await db.insert(products).values({
-//       productName,
-//       price,
-//     }).returning({ id: products.id });
-    
-//     return result[0].id;
-//   }
-
-//   // Add an order for a user
-//   async addOrder(userId: string, productName: string, plan: string, status: 'Active' | 'Expired' | 'Pending', inServiceDate: Date, outServiceDate?: Date) {
-//     // Get the internal user ID
-//     const userResults = await db.select().from(users).where(eq(users.externalId, userId));
-    
-//     if (userResults.length === 0) {
-//       throw new Error('User not found');
-//     }
-    
-//     // Get or create the product
-//     const productId = await this.getOrCreateProduct(productName);
-//     const orderId = `ORD${Math.floor(1000 + Math.random() * 9000)}`;
-    
-//     await db.insert(orders).values({
-//       orderId,
-//       userId: userResults[0].id,
-//       productId,
-//       productName,
-//       date: new Date(),
-//       inServiceDate,
-//       outServiceDate: outServiceDate || null,
-//       plan,
-//       status,
-//     });
-    
-//     return orderId;
-//   }
-
-//   // Add an incident for a user
-//   async addIncident(userId: string, description: string, status: 'Open' | 'Pending' | 'Resolved') {
-//     // Get the internal user ID
-//     const userResults = await db.select().from(users).where(eq(users.externalId, userId));
-    
-//     if (userResults.length === 0) {
-//       throw new Error('User not found');
-//     }
-    
-//     const incidentId = `INC${Math.floor(1000 + Math.random() * 9000)}`;
-    
-//     await db.insert(incidents).values({
-//       incidentId,
-//       userId: userResults[0].id,
-//       date: new Date(),
-//       description,
-//       status,
-//     });
-    
-//     return incidentId;
-//   }
-
-//   // Update an incident status
-//   async updateIncidentStatus(incidentId: string, status: 'Open' | 'Pending' | 'Resolved') {
-//     await db.update(incidents)
-//       .set({ status })
-//       .where(eq(incidents.incidentId, incidentId));
-//   }
-
-//   // Update an order status
-//   async updateOrderStatus(orderId: string, status: 'Active' | 'Expired' | 'Pending') {
-//     await db.update(orders)
-//       .set({ status })
-//       .where(eq(orders.orderId, orderId));
-//   }
-// }
-
-
 // lib/repositories/userRepository.ts
 import { db } from '../db';
 import { customers, contacts, orders, orderProducts, productTypes, orderProductParameters, incidents, invoices } from '../schema';
@@ -238,6 +32,15 @@ export interface UserWithDetails {
     description: string;
     adjustment: string | null;
   }[];
+}
+
+interface Order {
+  id: string;
+  userId: string;
+  productName: string;
+  plan: string;
+  status: 'pending' | 'completed' | 'cancelled';
+  createdAt: Date;
 }
 
 export class UserRepository {
@@ -411,6 +214,88 @@ export class UserRepository {
     }
   }
 
+  // Check for expiring plans (within the next 7 days)
+  async checkExpiringPlans(userId: string): Promise<{ productName: string; plan: string; daysUntilExpiration: number } | null> {
+    // Get the user's active orders
+    const userOrders = await db
+      .select({
+        orderId: sql<string>`CAST(${orders.orderId} AS TEXT)`,
+        orderProductId: orderProducts.orderProductId,
+        productName: sql<string>`COALESCE(${productTypes.type}, '')`,
+        inServiceDate: orderProducts.inServiceDt,
+        outServiceDate: orderProducts.outServiceDt,
+        status: orders.status,
+      })
+      .from(orderProducts)
+      .leftJoin(orders, eq(orderProducts.orderId, orders.orderId))
+      .leftJoin(productTypes, eq(orderProducts.productTypeId, productTypes.productTypeId))
+      .where(
+        and(
+          eq(orders.customerId, userId),
+          eq(orders.status, 'InProgress'), // Only active orders
+          sql`${orders.orderId} IS NOT NULL`
+        )
+      );
+    
+    // Get plan info from orderProductParameters
+    const planParameters = await db
+      .select({
+        orderProductId: orderProductParameters.orderProductId,
+        value: orderProductParameters.value,
+      })
+      .from(orderProductParameters)
+      .where(
+        and(
+          eq(orderProductParameters.name, 'PlanName'),
+          sql`${orderProductParameters.orderProductId} IN (
+            SELECT op.order_product_id 
+            FROM order_products op
+            JOIN orders o ON op.order_id = o.order_id
+            WHERE o.customer_id = ${userId}
+          )`
+        )
+      );
+    
+    // Create a map of orderProductId to plan
+    const planMap = new Map();
+    planParameters.forEach(param => {
+      planMap.set(param.orderProductId, param.value);
+    });
+    
+    // Check for expiring plans
+    const today = new Date();
+    const sevenDaysFromNow = new Date();
+    sevenDaysFromNow.setDate(today.getDate() + 7);
+    
+    for (const order of userOrders) {
+      // If outServiceDate is not set, calculate it based on inServiceDate (1 month from inServiceDate)
+      let outServiceDate = order.outServiceDate;
+      
+      if (!outServiceDate && order.inServiceDate) {
+        const inServiceDate = new Date(order.inServiceDate);
+        outServiceDate = new Date(inServiceDate);
+        outServiceDate.setMonth(outServiceDate.getMonth() + 1); // 1 month from inServiceDate
+      }
+      
+      if (outServiceDate) {
+        const expirationDate = new Date(outServiceDate);
+        
+        // Check if the plan is expiring within the next 7 days
+        if (expirationDate > today && expirationDate <= sevenDaysFromNow) {
+          const daysUntilExpiration = Math.ceil((expirationDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          
+          return {
+            productName: order.productName,
+            plan: planMap.get(order.orderProductId) || 'Standard',
+            daysUntilExpiration
+          };
+        }
+      }
+    }
+    
+    return null; // No expiring plans found
+  }
+
   // Create a new user
   async createUser(name: string, email: string, phoneNumber: string) {
     const customerId = uuidv4();
@@ -542,7 +427,7 @@ export class UserRepository {
     } catch (error) {
       console.error('Error creating incident:', error);
       // If there's a unique constraint error, try again with a new ID
-      if (error.code === '23505') {
+      if (error instanceof Error && (error as any).code === '23505') {
         const newRandomNum = Math.floor(1000 + Math.random() * 9000);
         const newIncidentId = `INC${timestamp}${newRandomNum}`;
         
@@ -591,5 +476,17 @@ export class UserRepository {
         .set({ status: dbStatus as "Pending" | "InProgress" | "Completed" })
         .where(eq(orders.orderId, orderId));
     }
+  }
+
+  async createOrder(orderData: Omit<Order, 'id' | 'createdAt'>): Promise<Order> {
+    const order: Order = {
+      id: crypto.randomUUID(),
+      ...orderData,
+      createdAt: new Date()
+    };
+
+    // In a real application, this would be saved to a database
+    // For now, we'll just return the order object
+    return order;
   }
 }
