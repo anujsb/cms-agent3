@@ -523,17 +523,42 @@ export class UserRepository {
       throw new Error('User not found');
     }
     
-    const incidentId = `INC${Math.floor(1000 + Math.random() * 9000)}`;
+    // Generate a unique incident ID with timestamp to avoid collisions
+    const timestamp = Date.now().toString().slice(-4);
+    const randomNum = Math.floor(1000 + Math.random() * 9000);
+    const incidentId = `INC${timestamp}${randomNum}`;
     
-    await db.insert(incidents).values({
-      incidentId,
-      userId, // Use customer ID as user ID
-      date: new Date(),
-      description,
-      status,
-    });
-    
-    return incidentId;
+    try {
+      await db.insert(incidents).values({
+        incidentId,
+        userId, // Use customer ID as user ID
+        date: new Date(),
+        description,
+        status,
+        createdAt: new Date(), // Add created_at timestamp
+      });
+      
+      return incidentId;
+    } catch (error) {
+      console.error('Error creating incident:', error);
+      // If there's a unique constraint error, try again with a new ID
+      if (error.code === '23505') {
+        const newRandomNum = Math.floor(1000 + Math.random() * 9000);
+        const newIncidentId = `INC${timestamp}${newRandomNum}`;
+        
+        await db.insert(incidents).values({
+          incidentId: newIncidentId,
+          userId,
+          date: new Date(),
+          description,
+          status,
+          createdAt: new Date(),
+        });
+        
+        return newIncidentId;
+      }
+      throw error;
+    }
   }
 
   // Update an incident status

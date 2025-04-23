@@ -30,6 +30,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import InlinePlanSelector from "./InlinePlanSelector";
 import { Modal } from "@/components/ui/Modal";
+import InlineIncidentSelector from "./InlineIncidentSelector";
 
 // Add CSS for compact lists
 const compactListStyles = `
@@ -67,9 +68,13 @@ interface Message {
   timestamp: string;
   isOrderConfirmation?: boolean;
   orderId?: string;
-  showOrderSelector?: boolean; // Add this field
-  suggestedProduct?: string | null; // Allow null as well
-  showCallButton?: boolean; // Add this field to indicate when to show the call button
+  showOrderSelector?: boolean;
+  suggestedProduct?: string | null;
+  showCallButton?: boolean;
+  isIncidentCreated?: boolean;
+  incidentId?: string;
+  showIncidentPrompt?: boolean;
+  showIncidentSelector?: boolean;
 }
 
 interface ChatWindowProps {
@@ -186,6 +191,25 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
     setIsLoading(true);
 
     try {
+      // Check if the message indicates a problem
+      if (detectProblem(input)) {
+        // Add a prompt asking if they want to create an incident
+        setMessages(prev => [
+          ...prev,
+          {
+            text: "It seems like you're experiencing an issue. Would you like to create an incident ticket for our support team to help you?",
+            isBot: true,
+            timestamp: new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            showIncidentPrompt: true,
+          },
+        ]);
+        setIsLoading(false);
+        return;
+      }
+
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -210,10 +234,20 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
         showOrderSelector: data.isOrderIntent || false, // Only show selector if order intent is detected
         suggestedProduct: data.productName || null,
         showCallButton: userAskingForCare || needsRealCustomerCare(data.reply), // Show call button if user is asking for care or bot indicates need for real person
+        isIncidentCreated: data.incidentCreated,
+        incidentId: data.incidentId,
       };
 
       if (data.orderPlaced && data.orderId) {
         setRecentOrderId(data.orderId);
+      }
+
+      if (data.incidentCreated) {
+        // Show success toast
+        toast("Incident ticket created", {
+          description: `Your incident ID is ${data.incidentId}`,
+          duration: 5000,
+        });
       }
 
       setMessages((prev) => [...prev, botMessage]);
@@ -238,6 +272,7 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
       }
     }
   };
+
   const handleQuickOrder = (product: string, plan: string) => {
     setPendingOrder({ product, plan });
 
@@ -450,10 +485,20 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
         }),
         isOrderConfirmation: data.orderPlaced,
         orderId: data.orderId,
+        isIncidentCreated: data.incidentCreated,
+        incidentId: data.incidentId,
       };
 
       if (data.orderPlaced && data.orderId) {
         setRecentOrderId(data.orderId);
+      }
+
+      if (data.incidentCreated) {
+        // Show success toast
+        toast("Incident ticket created", {
+          description: `Your incident ID is ${data.incidentId}`,
+          duration: 5000,
+        });
       }
 
       setMessages((prev) => [...prev, botMessage]);
@@ -475,6 +520,110 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
         inputRef.current.focus();
       }
     }
+  };
+
+  const handleIncidentPromptResponse = (wantsToCreateIncident: boolean) => {
+    if (wantsToCreateIncident) {
+      // Show the incident selector
+      setMessages(prev => prev.map((msg, idx) => 
+        idx === prev.length - 1 ? { ...msg, showIncidentPrompt: false, showIncidentSelector: true } : msg
+      ));
+    } else {
+      // Add a message saying they can create an incident later if needed
+      setMessages(prev => [
+        ...prev,
+        {
+          text: "Okay, no problem. If you need to report an issue later, just let me know.",
+          isBot: true,
+          timestamp: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        },
+      ]);
+    }
+  };
+
+  const handleIncidentCreation = async (category: string, description: string) => {
+    // Hide the incident selector
+    setMessages(prev => prev.map(msg => ({ ...msg, showIncidentSelector: false })));
+
+    // Add user's issue description to chat
+    const userMessage = {
+      text: `Issue Category: ${category}\nDescription: ${description}`,
+      isBot: false,
+      timestamp: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setIsLoading(true);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: `[INCIDENT] Category: ${category} - ${description}`,
+          userId,
+        }),
+      });
+
+      const data = await res.json();
+
+      const botMessage = {
+        text: data.reply,
+        isBot: true,
+        timestamp: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        isIncidentCreated: data.incidentCreated,
+        incidentId: data.incidentId,
+        showCallButton: true,
+      };
+
+      if (data.incidentCreated) {
+        toast("Incident ticket created", {
+          description: `Your incident ID is ${data.incidentId}`,
+          duration: 5000,
+        });
+      }
+
+      setMessages(prev => [...prev, botMessage]);
+    } catch (error) {
+      console.error("Error creating incident:", error);
+      setMessages(prev => [
+        ...prev,
+        {
+          text: "Sorry, I'm having trouble creating your incident ticket. Please try again later or contact our support team directly.",
+          isBot: true,
+          timestamp: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          showCallButton: true,
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Modify the detectProblem function
+  const detectProblem = (text: string): boolean => {
+    const problemKeywords = [
+      "problem", "issue", "not working", "broken",
+      "error", "slow", "disconnected", "poor",
+      "complaint", "help", "support", "trouble",
+      "wrong", "bad", "failed", "stuck"
+    ];
+
+    return problemKeywords.some(keyword => 
+      text.toLowerCase().includes(keyword)
+    );
   };
 
   return (
@@ -644,6 +793,13 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
                             </div>
                           </div>
                         )}
+
+                        {msg.isIncidentCreated && (
+                          <div className="flex items-center mb-2 text-yellow-600">
+                            <AlertCircle size={16} className="mr-2" />
+                            <span className="font-medium">Incident Ticket Created</span>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <p className="whitespace-pre-wrap break-words">
@@ -804,6 +960,35 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
                           Decline
                         </Button>
                       </div>
+                    )}
+                    {msg.showIncidentPrompt && (
+                      <div className="mt-3 flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="bg-yellow-50 text-yellow-600 hover:bg-yellow-100 border border-yellow-200"
+                          onClick={() => handleIncidentPromptResponse(true)}
+                        >
+                          <AlertCircle size={14} className="mr-2" />
+                          Yes, Report Issue
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-gray-600"
+                          onClick={() => handleIncidentPromptResponse(false)}
+                        >
+                          No, Thanks
+                        </Button>
+                      </div>
+                    )}
+                    {msg.showIncidentSelector && (
+                      <InlineIncidentSelector
+                        onIncidentSelected={handleIncidentCreation}
+                        onCancel={() => setMessages(prev => 
+                          prev.map(m => ({ ...m, showIncidentSelector: false }))
+                        )}
+                      />
                     )}
                   </div>
                 </div>

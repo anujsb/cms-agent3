@@ -58,6 +58,52 @@ function detectOrderIntent(message: string): { isOrderIntent: boolean; productNa
   return { isOrderIntent: false };
 }
 
+// Helper function to detect incident intent
+function detectIncidentIntent(message: string): { isIncidentIntent: boolean; category?: string; description?: string } {
+  // Check if this is a direct incident creation request
+  if (message.startsWith('[INCIDENT]')) {
+    const match = message.match(/\[INCIDENT\] Category: (.*?) - (.*)/);
+    if (match) {
+      return {
+        isIncidentIntent: true,
+        category: match[1],
+        description: match[2]
+      };
+    }
+  }
+
+  // Check for problem keywords as before
+  const incidentKeywords = [
+    "problem", "issue", "not working", "broken", "error",
+    "slow", "disconnected", "poor signal", "no signal",
+    "complaint", "help", "support", "trouble"
+  ];
+
+  const hasIncidentIntent = incidentKeywords.some(keyword =>
+    message.toLowerCase().includes(keyword)
+  );
+
+  if (hasIncidentIntent) {
+    // Try to identify the category
+    let category = "General";
+    if (message.toLowerCase().includes("internet") || message.toLowerCase().includes("wifi") || message.toLowerCase().includes("connection")) {
+      category = "Internet Issues";
+    } else if (message.toLowerCase().includes("tv") || message.toLowerCase().includes("television") || message.toLowerCase().includes("channel")) {
+      category = "TV Service Issues";
+    } else if (message.toLowerCase().includes("phone") || message.toLowerCase().includes("call") || message.toLowerCase().includes("signal")) {
+      category = "Phone Issues";
+    }
+
+    return {
+      isIncidentIntent: true,
+      category,
+      description: message
+    };
+  }
+
+  return { isIncidentIntent: false };
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { message, userId } = await req.json();
@@ -69,7 +115,48 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Check if the message contains an order intent
+    // Check for incident intent first
+    const incidentIntent = detectIncidentIntent(message);
+    
+    if (incidentIntent.isIncidentIntent) {
+      try {
+        // Create a new incident with the category and description
+        const incidentId = await userRepository.addIncident(
+          userId,
+          `[${incidentIntent.category}] ${incidentIntent.description}`,
+          'Open' // Default status for new incidents
+        );
+
+        let reply = `I've created an incident ticket for your ${incidentIntent.category?.toLowerCase()} issue. Your incident ID is **${incidentId}**.`;
+        
+        // Add appropriate next steps based on the category
+        if (incidentIntent.category === "Internet Issues") {
+          reply += "\n\nIn the meantime, you can try these steps:\n- Restart your router\n- Check if other devices are affected\n- Verify your WiFi connection";
+        } else if (incidentIntent.category === "TV Service Issues") {
+          reply += "\n\nWhile waiting, you can try:\n- Restart your TV box\n- Check your TV connection cables\n- Verify if other channels are affected";
+        } else if (incidentIntent.category === "Phone Issues") {
+          reply += "\n\nYou can try these troubleshooting steps:\n- Restart your phone\n- Check if airplane mode is off\n- Verify if the issue affects calls, data, or both";
+        }
+
+        reply += "\n\nWould you like to speak with a customer service representative about this issue?";
+
+        return NextResponse.json({
+          reply,
+          incidentCreated: true,
+          incidentId,
+          showCallButton: true
+        });
+      } catch (error) {
+        console.error("Error creating incident:", error);
+        return NextResponse.json({
+          reply: "I'm sorry, but there was an error creating your incident ticket. Please try again later or contact our customer service at 1200.",
+          incidentCreated: false,
+          showCallButton: true
+        });
+      }
+    }
+
+    // Check for order intent
     const orderIntent = detectOrderIntent(message);
 
     // Handle order confirmation
