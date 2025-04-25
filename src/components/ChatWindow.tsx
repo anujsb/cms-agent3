@@ -180,6 +180,19 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
     return { product, plan };
   };
 
+  const detectProblem = (text: string): boolean => {
+    const problemKeywords = [
+      "problem", "issue", "not working", "broken",
+      "error", "slow", "disconnected", "poor",
+      "complaint", "help", "support", "trouble",
+      "wrong", "bad", "failed", "stuck", "report issue"
+    ];
+
+    return problemKeywords.some(keyword => 
+      text.toLowerCase().includes(keyword)
+    );
+  };
+
   const handleSend = async () => {
     if (!input.trim()) return;
 
@@ -199,11 +212,35 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
     try {
       // Check if the message indicates a problem
       if (detectProblem(input)) {
+        // Determine the category of the issue
+        let category = "General";
+        const messageLower = input.toLowerCase();
+        
+        if (messageLower.includes("internet") || messageLower.includes("wifi") || messageLower.includes("connection")) {
+          category = "Internet Issues";
+        } else if (messageLower.includes("tv") || messageLower.includes("television") || messageLower.includes("channel")) {
+          category = "TV Service Issues";
+        } else if (messageLower.includes("phone") || messageLower.includes("call") || messageLower.includes("signal")) {
+          category = "Phone Issues";
+        }
+        
+        // Create a message with troubleshooting steps based on the category
+        let troubleshootingSteps = "";
+        if (category === "Internet Issues") {
+          troubleshootingSteps = "Before creating an incident ticket, you can try:\n- Restart your router\n- Check if other devices are affected\n- Verify your WiFi connection";
+        } else if (category === "TV Service Issues") {
+          troubleshootingSteps = "Before creating an incident ticket, you can try:\n- Restart your TV box\n- Check your TV connection cables\n- Verify if other channels are affected";
+        } else if (category === "Phone Issues") {
+          troubleshootingSteps = "Before creating an incident ticket, you can try:\n- Restart your phone\n- Check if airplane mode is off\n- Verify if the issue affects calls, data, or both";
+        } else {
+          troubleshootingSteps = "Before creating an incident ticket, you can try:\n- Restart your device\n- Check your connection\n- Verify if the issue affects other services";
+        }
+        
         // Add a prompt asking if they want to create an incident
         setMessages(prev => [
           ...prev,
           {
-            text: "It seems like you're experiencing an issue. Would you like to create an incident ticket for our support team to help you?",
+            text: `It seems like you're experiencing an issue.\n\n${troubleshootingSteps}\n\nIf the issue persists, would you like to create an incident ticket for our support team to help you?`,
             isBot: true,
             timestamp: new Date().toLocaleTimeString([], {
               hour: "2-digit",
@@ -228,7 +265,7 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
       const userAskingForCare = isAskingForCustomerCare(input);
 
       // Check if the backend indicates an order intent
-      const botMessage = {
+      const botMessage: Message = {
         text: data.reply,
         isBot: true,
         timestamp: new Date().toLocaleTimeString([], {
@@ -242,6 +279,7 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
         showCallButton: userAskingForCare || needsRealCustomerCare(data.reply), // Show call button if user is asking for care or bot indicates need for real person
         isIncidentCreated: data.incidentCreated,
         incidentId: data.incidentId,
+        showIncidentPrompt: data.showIncidentPrompt || false,
         hasExpiringPlan: data.hasExpiringPlan || false,
         expiringPlan: data.expiringPlan || null,
       };
@@ -634,20 +672,6 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  // Modify the detectProblem function
-  const detectProblem = (text: string): boolean => {
-    const problemKeywords = [
-      "problem", "issue", "not working", "broken",
-      "error", "slow", "disconnected", "poor",
-      "complaint", "help", "support", "trouble",
-      "wrong", "bad", "failed", "stuck"
-    ];
-
-    return problemKeywords.some(keyword => 
-      text.toLowerCase().includes(keyword)
-    );
   };
 
   return (
