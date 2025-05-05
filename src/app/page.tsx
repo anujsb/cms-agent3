@@ -27,6 +27,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import OrderAnalysis from "@/components/OrderAnalysis";
 
 interface User {
   id: string;
@@ -72,6 +73,12 @@ export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const [ordersWithProducts, setOrdersWithProducts] = useState<OrderWithProducts[]>([]);
+  const [input, setInput] = useState("");
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [pendingOrder, setPendingOrder] = useState<{
+    product: string;
+    plan: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!selectedUser) return;
@@ -144,6 +151,24 @@ export default function Home() {
       default:
         return "bg-slate-100 text-slate-800 border-slate-200";
     }
+  };
+
+  const handleUpsellClick = (productName: string, lastPlan: string) => {
+    console.log("Upsell button clicked with:", { productName, lastPlan });
+    const message = `Based on the customer's purchase history, they have purchased ${productName} multiple times. Their last plan was ${lastPlan}. Consider suggesting an upgrade to the latest plan.`;
+    console.log("Prepared message:", message);
+    setInput(message);
+    
+    // Automatically send the message after a short delay to ensure state updates
+    setTimeout(() => {
+      const chatWindow = document.querySelector('[data-chat-window]');
+      if (chatWindow) {
+        const sendButton = chatWindow.querySelector('button[type="submit"]');
+        if (sendButton) {
+          (sendButton as HTMLButtonElement).click();
+        }
+      }
+    }, 100);
   };
 
   return (
@@ -403,6 +428,11 @@ export default function Home() {
                         )}
                       </TabsContent>
                     </Tabs>
+
+                    <OrderAnalysis 
+                      userId={selectedUser} 
+                      onUpsellClick={handleUpsellClick}
+                    />
                   </div>
                 ) : selectedUser ? (
                   <div className="bg-red-50 border border-red-100 rounded-xl p-6 text-center">
@@ -426,7 +456,11 @@ export default function Home() {
           {/* Chat Window */}
           <div className="w-full md:w-2/3 pl-2">
             {selectedUser ? (
-              <ChatWindow userId={selectedUser} />
+              <ChatWindow 
+                userId={selectedUser} 
+                input={input}
+                onInputChange={setInput}
+              />
             ) : (
               <Card className="h-full flex items-center justify-center p-8 shadow-lg rounded-xl border-gray-200">
                 <div className="text-center p-6">

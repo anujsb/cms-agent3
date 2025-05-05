@@ -85,9 +85,11 @@ interface Message {
 
 interface ChatWindowProps {
   userId: string;
+  input?: string;
+  onInputChange?: (value: string) => void;
 }
 
-export default function ChatWindow({ userId }: ChatWindowProps) {
+export default function ChatWindow({ userId, input: externalInput, onInputChange }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       text: "Hello! How can I assist you today?",
@@ -109,8 +111,11 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
     plan: string;
   } | null>(null);
 
-  // Scroll to bottom when messages change
+  // Update internal input state when external input changes
   useEffect(() => {
+    if (externalInput !== undefined) {
+      setInput(externalInput);
+    }
     if (scrollAreaRef.current) {
       const scrollContainer = scrollAreaRef.current.querySelector(
         "[data-radix-scroll-area-viewport]"
@@ -712,7 +717,7 @@ export default function ChatWindow({ userId }: ChatWindowProps) {
         {compactListStyles}
       </style>
 
-      <Card className="flex flex-col h-[600px] shadow-lg rounded-xl border-gray-200 overflow-hidden">
+      <Card className="flex flex-col h-[600px] shadow-lg rounded-xl border-gray-200 overflow-hidden" data-chat-window>
         <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-4 px-4">
           <div className="flex justify-between items-center">
             <CardTitle className=" flex items-center">
