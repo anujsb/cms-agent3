@@ -1,9 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, Info, TrendingUp } from "lucide-react";
-import { toast } from "sonner";
+import { ShoppingCart, TrendingUp, ArrowRight, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface Order {
@@ -100,10 +99,10 @@ export default function OrderAnalysis({ userId, onUpsellClick }: OrderAnalysisPr
 
   if (loading) {
     return (
-      <Card className="mt-4">
-        <CardHeader>
-          <CardTitle className="text-sm font-medium">Analyzing Customer History...</CardTitle>
-        </CardHeader>
+      <Card className="mt-4 bg-gray-50 animate-pulse">
+        <div className="p-6 flex items-center justify-center">
+          <div className="h-6 w-64 bg-gray-200 rounded"></div>
+        </div>
       </Card>
     );
   }
@@ -115,44 +114,47 @@ export default function OrderAnalysis({ userId, onUpsellClick }: OrderAnalysisPr
   const lastPurchaseDate = new Date(mostUsedProduct.lastPurchaseDate).toLocaleDateString();
 
   return (
-    <Card className="shadow-sm border-gray-200">
-      <div className="py-2 px-4 border-b border-gray-100">
-        <h1 className="text-sm font-medium flex items-center gap-2 text-gray-700">
-          <TrendingUp size={16} className="text-gray-500" />
-          UPSELL OPPORTUNITY
-        </h1>
+    <Card className="shadow-md border-0 overflow-hidden bg-gradient-to-br from-blue-50 to-white">
+      <div className="py-3 px-5 bg-blue-600 text-white">
+        <div className="flex items-center gap-2">
+          <TrendingUp size={18} className="text-blue-100" />
+          <h1 className="text-sm font-semibold tracking-wide">UPSELL OPPORTUNITY</h1>
+        </div>
       </div>
-      <CardContent className="pb-4">
-        <div className="space-y-3">
-          <div className="flex flex-col p-3 rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-150">
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex items-center gap-1.5">
-                <span className="text-lg">📊</span>
-                <Badge className="text-blue-500 border-blue-200 bg-blue-50 px-2 py-0.5 rounded-md font-medium">
-                  Product Analysis
-                </Badge>
+      
+      <CardContent className="">
+        <div className="bg-white p-4 rounded-lg border border-gray-100 shadow-sm mb-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-blue-100 text-blue-600 p-2 rounded-full">
+                <ShoppingCart size={16} />
               </div>
-              <div className="flex flex-col items-end justify-between gap-2">
-                <span className="text-xs text-gray-500 font-medium px-2 py-0.5 bg-gray-100 rounded-md">
-                  {mostUsedProduct.count} {mostUsedProduct.count === 1 ? "purchase" : "purchases"}
-                </span>
-                <Badge className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-0.5 font-normal">
-                  {mostUsedProduct.lastPlan}
-                </Badge>
-              </div>
+              <span className="font-medium text-gray-700">Purchase Analysis</span>
             </div>
-            <div className="space-y-4 mt-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Most Purchased Product:</span>
-                <span className=" text-gray-900 text-base text-right" style={{maxWidth: '60%', wordBreak: 'break-word'}}>{mostUsedProduct.productName}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm mt-2">
-                <span className="text-gray-600">Last Purchase Date:</span>
-                <span className=" text-gray-900 text-base text-right">{lastPurchaseDate}</span>
-              </div>
-            </div>
+            <Badge className="bg-blue-50 text-blue-700 border-0">
+              {mostUsedProduct.count} {mostUsedProduct.count === 1 ? "purchase" : "purchases"}
+            </Badge>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-sm">
+            <div className="text-gray-500">Most purchased:</div>
+            <div className="font-medium text-gray-800 break-words">{mostUsedProduct.productName}</div>
+            
+            <div className="text-gray-500">Last purchase:</div>
+            <div className="font-medium text-gray-800">{lastPurchaseDate}</div>
+            
+            <div className="text-gray-500">Current plan:</div>
+            <div className="font-medium text-gray-800">{mostUsedProduct.lastPlan}</div>
           </div>
         </div>
+        
+        {/* <Button 
+          onClick={handleUpsell}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 flex items-center justify-center gap-2 rounded-lg"
+        >
+          <span>View Upsell Options</span>
+          <ArrowRight size={16} />
+        </Button> */}
       </CardContent>
     </Card>
   );
