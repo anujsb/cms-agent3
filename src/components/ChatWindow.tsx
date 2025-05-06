@@ -31,6 +31,7 @@ import ReactMarkdown from "react-markdown";
 import InlinePlanSelector from "./InlinePlanSelector";
 import { Modal } from "@/components/ui/Modal";
 import InlineIncidentSelector from "./InlineIncidentSelector";
+import VoiceInput from "./VoiceInput";
 
 // Add CSS for compact lists
 const compactListStyles = `
@@ -1175,14 +1176,25 @@ export default function ChatWindow({ userId, input: externalInput, onInputChange
                 disabled={isLoading}
                 className="pr-10 pl-4 py-2 border-gray-300 focus:border-blue-400 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
               />
-              <Button
-                type="button"
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-blue-500"
-                onClick={() => setInput(input + "😊")}
-                disabled={isLoading}
-              >
-                <Smile size={18} />
-              </Button>
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
+                <VoiceInput
+                  onTranscriptionComplete={(text) => {
+                    setInput(text);
+                    if (text.trim()) {
+                      handleSend();
+                    }
+                  }}
+                  isProcessing={isLoading}
+                />
+                <Button
+                  type="button"
+                  className="text-gray-400 hover:text-blue-500"
+                  onClick={() => setInput(input + "😊")}
+                  disabled={isLoading}
+                >
+                  <Smile size={18} />
+                </Button>
+              </div>
             </div>
             <Button
               type="submit"
