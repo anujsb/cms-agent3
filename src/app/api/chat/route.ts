@@ -2,9 +2,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { UserRepository } from "@/lib/repositories/userRepository";
+import { OfferRepository } from "@/lib/repositories/offerRepository";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 const userRepository = new UserRepository();
+const offerRepository = new OfferRepository();
 
 // Helper function to detect order intent
 function detectOrderIntent(message: string): { isOrderIntent: boolean; productName?: string; plan?: string } {
@@ -333,6 +335,46 @@ function cleanResponse(response: string): string {
     .trim();
 }
 
+// Helper function to detect offer intent
+function detectOfferIntent(message: string): { isOfferIntent: boolean; isPersonalized: boolean } {
+  const messageLower = message.toLowerCase();
+  
+  // Check for current offers
+  const currentOfferKeywords = ["current offers", "available offers", "what offers", "show offers", "list offers"];
+  const isCurrentOffer = currentOfferKeywords.some(keyword => messageLower.includes(keyword));
+  
+  // Check for personalized offers
+  const personalizedOfferKeywords = ["offer for me", "personalized offer", "special offer", "any offer for me", "do you have any offer"];
+  const isPersonalizedOffer = personalizedOfferKeywords.some(keyword => messageLower.includes(keyword));
+  
+  return {
+    isOfferIntent: isCurrentOffer || isPersonalizedOffer,
+    isPersonalized: isPersonalizedOffer
+  };
+}
+
+// Helper function to format offers for display
+function formatOffers(offers: any[], isPersonalized: boolean = false): string {
+  if (offers.length === 0) {
+    if (isPersonalized) {
+      return "I'm sorry, but you are not yet eligible for any personalized offers. Keep using our services to unlock special offers!";
+    }
+    return "I'm sorry, but there are no offers available at the moment.";
+  }
+
+  let response = isPersonalized ? "Here are your personalized offers:\n" : "Here are the current offers:\n";
+  
+  offers.forEach((offer, index) => {
+    response += `${index + 1}. **${offer.name}**`;
+    response += `   - ${offer.description}`;
+    response += `   - ${offer.discountPercentage}% off on ${offer.productType} ${offer.planType} plan`;
+    response += `   - Valid until ${new Date(offer.endDate).toLocaleDateString()}`;
+    response += `\n`;
+  });
+
+  return response;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { message, userId } = await req.json();
@@ -357,6 +399,9 @@ export async function POST(req: NextRequest) {
     const orderIntent = detectOrderIntent(message);
     const hasRenewalIntent = detectRenewalIntent(message);
     const renewalDetails = hasRenewalIntent ? extractRenewalDetails(message) : null;
+    
+    // Check for offer intent
+    const offerIntent = detectOfferIntent(message);
     
     // Handle incident creation
     if (incidentIntent.isIncidentIntent) {
@@ -389,6 +434,28 @@ export async function POST(req: NextRequest) {
         reply: `I noticed your ${expiringPlan.productName} plan with the ${expiringPlan.plan} option will expire in ${expiringPlan.daysUntilExpiration} days. Would you like to renew it?`,
         hasExpiringPlan: true,
         expiringPlan
+      });
+    }
+
+    // Handle offer intent
+    if (offerIntent.isOfferIntent) {
+      let offers;
+      let reply;
+      
+      if (offerIntent.isPersonalized) {
+        // Get personalized offers
+        offers = await offerRepository.getPersonalizedOffers(userId);
+        reply = formatOffers(offers, true);
+      } else {
+        // Get current offers
+        offers = await offerRepository.getCurrentOffers();
+        reply = formatOffers(offers, false);
+      }
+      
+      return NextResponse.json({
+        reply,
+        hasOffers: offers.length > 0,
+        offers
       });
     }
 

@@ -97,7 +97,7 @@
 
 
 // lib/schema.ts
-import { pgTable, serial, varchar, text, timestamp, pgEnum, integer, numeric, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, text, timestamp, pgEnum, integer, numeric, boolean, jsonb } from 'drizzle-orm/pg-core';
 
 // Create enums for statuses
 export const orderStatusEnum = pgEnum('order_status', ['InProgress', 'Completed', 'Pending']);
@@ -223,5 +223,36 @@ export const users = pgTable('users_view', {
   name: varchar('name', { length: 255 }).notNull(),
   email: varchar('email', { length: 255 }).notNull().unique(),
   phoneNumber: varchar('phone_number', { length: 20 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Personalized Offers table
+export const personalizedOffers = pgTable('personalized_offers', {
+  id: serial('id').primaryKey(),
+  offerId: varchar('offer_id', { length: 36 }).notNull().unique(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description').notNull(),
+  discountPercentage: numeric('discount_percentage', { precision: 5, scale: 2 }).notNull(),
+  conditions: jsonb('conditions').notNull(), // Stores conditions like "purchase_count": 5
+  productType: varchar('product_type', { length: 255 }).notNull(),
+  planType: varchar('plan_type', { length: 255 }).notNull(),
+  startDate: timestamp('start_date').notNull(),
+  endDate: timestamp('end_date').notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Current Offers table
+export const currentOffers = pgTable('current_offers', {
+  id: serial('id').primaryKey(),
+  offerId: varchar('offer_id', { length: 36 }).notNull().unique(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description').notNull(),
+  discountPercentage: numeric('discount_percentage', { precision: 5, scale: 2 }).notNull(),
+  productType: varchar('product_type', { length: 255 }).notNull(),
+  planType: varchar('plan_type', { length: 255 }).notNull(),
+  startDate: timestamp('start_date').notNull(),
+  endDate: timestamp('end_date').notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
