@@ -28,6 +28,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import OrderAnalysis from "@/components/OrderAnalysis";
+import { useRouter } from "next/navigation";
 
 interface User {
   id: string;
@@ -79,6 +80,7 @@ export default function Home() {
     product: string;
     plan: string;
   } | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     if (!selectedUser) return;
@@ -171,16 +173,34 @@ export default function Home() {
     }, 100);
   };
 
+  const handleLogout = () => {
+    // Remove token from localStorage
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    // Remove token cookie
+    document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    // Redirect to login
+    router.push("/login");
+  };
+
   return (
     <main className="flex min-h-screen flex-col bg-gradient-to-br from-gray-50 to-blue-50 p-4 md:p-6">
       <div className="w-full max-w-6xl mx-auto">
-        <header className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">
-            Customer Care Portal
-          </h1>
-          <p className="text-gray-500">
-            Manage customer interactions and support tickets efficiently
-          </p>
+        <header className="mb-6 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800 mb-2">
+              Customer Care Portal
+            </h1>
+            <p className="text-gray-500">
+              Manage customer interactions and support tickets efficiently
+            </p>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition"
+          >
+            Logout
+          </button>
         </header>
 
         <div className="flex flex-col md:flex-row gap-2">

@@ -1185,15 +1185,15 @@ export default function ChatWindow({ userId, input: externalInput, onInputChange
                     }
                   }}
                   isProcessing={isLoading}
-                />
-                <Button
-                  type="button"
+              />
+              <Button
+                type="button"
                   className="text-gray-400 hover:text-blue-500"
-                  onClick={() => setInput(input + "😊")}
-                  disabled={isLoading}
-                >
-                  <Smile size={18} />
-                </Button>
+                onClick={() => setInput(input + "😊")}
+                disabled={isLoading}
+              >
+                <Smile size={18} />
+              </Button>
               </div>
             </div>
             <Button

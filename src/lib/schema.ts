@@ -256,3 +256,12 @@ export const currentOffers = pgTable('current_offers', {
   isActive: boolean('is_active').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+
+// Auth Users table for authentication
+export const authUsers = pgTable('auth_users', {
+  id: serial('id').primaryKey(),
+  email: varchar('email', { length: 255 }).notNull().unique(),
+  password: varchar('password', { length: 255 }).notNull(), // Will store hashed passwords
+  customerId: varchar('customer_id', { length: 36 }).references(() => customers.customerId),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
