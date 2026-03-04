@@ -1,6 +1,5 @@
 // app/api/analyze-issues/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // Define the interface for categorized issues
 interface CategorizedIssue {
@@ -10,8 +9,6 @@ interface CategorizedIssue {
   status: string;
   id: string;
 }
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,17 +20,15 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
     const prompt = `
-      You are an AI assistant for a telecom customer service platform. Analyze the following support incidents for a customer and categorize them based on similarity.
+      You are an AI assistant for a modern customer support platform. Analyze the following support incidents for a customer and categorize them based on similarity.
 
       Customer incidents: ${JSON.stringify(incidents)}
 
       Instructions:
       1. Group these incidents into up to 5 categories based on similarity of issue type
       2. For each category:
-         - Provide a concise category name (e.g., "Billing", "Network", "Hardware")
+         - Provide a concise category name (e.g., "Billing", "Subscription", "Access", "Technical issue")
          - Count how many incidents fall into this category
          - Select the most representative/recent incident details for this category
       3. Sort the categories by count in descending order (highest count first)
@@ -55,9 +50,52 @@ export async function POST(req: NextRequest) {
       - Sort the array by count in descending order so categories with the most incidents appear first.
     `;
 
-    // Call Gemini API
-    const result = await model.generateContent(prompt);
-    const responseText = await result.response.text();
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      console.error("GROQ_API_KEY is not set");
+      return NextResponse.json(
+        { error: "AI configuration error", categorizedIssues: [] },
+        { status: 500 }
+      );
+    }
+
+    const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "llama-3.1-8b-instant",
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        temperature: 0.1,
+      }),
+    });
+
+    if (!groqResponse.ok) {
+      const errorBody = await groqResponse.text();
+      console.error(
+        "Groq analyze-issues API error:",
+        groqResponse.status,
+        errorBody
+      );
+      return NextResponse.json(
+        {
+          error: "Failed to analyze issues with AI",
+          categorizedIssues: [],
+        },
+        { status: 502 }
+      );
+    }
+
+    const groqData: any = await groqResponse.json();
+    const responseText =
+      groqData.choices?.[0]?.message?.content?.toString() ?? "";
     
     // Clean up the response to handle potential code block formatting
     const cleanedResponse = responseText
@@ -76,7 +114,7 @@ export async function POST(req: NextRequest) {
       
       return NextResponse.json({ categorizedIssues });
     } catch (error) {
-      console.error("Failed to parse Gemini response:", responseText);
+      console.error("Failed to parse Groq response:", responseText);
       console.error("Cleaned response:", cleanedResponse);
       return NextResponse.json({ 
         error: "Failed to parse categorization results", 

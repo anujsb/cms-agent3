@@ -1,10 +1,7 @@
 // app/api/chat/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { UserRepository } from "@/lib/repositories/userRepository";
 import { OfferRepository } from "@/lib/repositories/offerRepository";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 const userRepository = new UserRepository();
 const offerRepository = new OfferRepository();
 
@@ -272,15 +269,15 @@ function preparePrompt(message: string, user: any, orderIntent: ReturnType<typeo
     : "";
 
   return `
-    You are a helpful and friendly customer care bot for Odido, a Dutch telecom company. Your role is to assist users with queries about their telecom services in clear and simple language. Always be empathetic and understanding, especially when users seem confused.
-    Always provide clear and concise answers based on what user has asked without displaying additional information, and if you don't know something, say so. Avoid using technical jargon or complex terms.
+    You are a helpful and friendly AI customer support assistant for a modern subscription-based digital service platform. Your role is to assist users with questions about their account, subscriptions, usage, and billing in clear and simple language. Always be empathetic and understanding, especially when users seem confused.
+    Always provide clear and concise answers based on what the user has asked without adding unrelated information, and if you don't know something, say so. Avoid using technical jargon or complex terms.
     
     User Data:
     - Name: ${user.name}
     - Phone Number: ${user.phoneNumber}
-    - Orders: ${JSON.stringify(user.orders)}
-    - Incidents: ${JSON.stringify(user.incidents)}
-    - Invoices: ${JSON.stringify(user.invoices)}
+    - Orders (subscriptions / purchases): ${JSON.stringify(user.orders)}
+    - Incidents (support tickets): ${JSON.stringify(user.incidents)}
+    - Invoices (billing lines): ${JSON.stringify(user.invoices)}
     
     User query: "${message}"
     
@@ -303,18 +300,18 @@ function preparePrompt(message: string, user: any, orderIntent: ReturnType<typeo
       - If the description starts with "Discount:", it's a special offer or promotional discount
       - If there's no "Discount:" prefix and the price is negative, it means the service was stopped before the end of the billing period
     2. Group charges into these simple categories:
-      - Your Monthly Services (regular charges)
+      - Your Subscription & Add-ons (regular charges)
       - Special Offers & Discounts (amounts with "Discount:" in description)
       - Credit for Stopped Services (negative amounts without "Discount:" prefix)
     3. Format the explanation like this example:
        Here's a simple breakdown of your bill:
-        - **Your Monthly Services:**
-        Internet: €20.00
-        TV Package: €5.00
+        - **Your Subscription & Add-ons:**
+        Core workspace subscription: 20.00
+        Analytics add-on: 5.00
         - **Special Offers & Discounts:**
-        **Savings** on ESPN Package: -€7.50 (special offer discount)
+        **Savings** on annual plan: -7.50 (special offer discount)
         - **Credit for Stopped Services:**
-        **Money Back** for Entertainment Package: -€2.00 (credit because you stopped this service early)
+        **Money back** for cancelled add-on: -2.00 (credit because you stopped this service early)
     4. Use simple, everyday language:
       - Say "savings" or "discount" instead of "promotional discount"
       - Say "money back" or "credit" instead of "service adjustment"
@@ -384,7 +381,19 @@ export async function POST(req: NextRequest) {
     }
 
     // Fetch user data from the database
-    const user = await userRepository.getUserById(userId);
+    let user = await userRepository.getUserById(userId);
+
+    // Allow a lightweight "demo" experience without needing a real user record
+    if (!user && userId === "demo-user") {
+      user = {
+        id: "demo-user",
+        name: "Anuj",
+        phoneNumber: "+1 000 000 0000",
+        orders: [],
+        incidents: [],
+        invoices: [],
+      };
+    }
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -460,10 +469,47 @@ export async function POST(req: NextRequest) {
     }
 
     // Process with AI for general queries
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const prompt = preparePrompt(message, user, orderIntent, expiringPlan);
-    const result = await model.generateContent(prompt);
-    const response = await result.response.text();
+
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      console.error("GROQ_API_KEY is not set");
+      return NextResponse.json(
+        { error: "AI configuration error" },
+        { status: 500 }
+      );
+    }
+
+    const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "llama-3.1-8b-instant",
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        temperature: 0.3,
+      }),
+    });
+
+    if (!groqResponse.ok) {
+      const errorText = await groqResponse.text();
+      console.error("Groq API error:", groqResponse.status, errorText);
+      return NextResponse.json(
+        { error: "AI service failed" },
+        { status: 502 }
+      );
+    }
+
+    const groqData: any = await groqResponse.json();
+    const response =
+      groqData.choices?.[0]?.message?.content?.toString() ?? "";
     const cleanedResponse = cleanResponse(response);
 
     return NextResponse.json({

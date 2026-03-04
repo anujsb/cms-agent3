@@ -95,10 +95,8 @@ export default function ChatWindow({ userId, input: externalInput, onInputChange
     {
       text: "Hello! How can I assist you today?",
       isBot: true,
-      timestamp: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+      // Filled on the client after mount to avoid SSR hydration mismatch
+      timestamp: "",
     },
   ]);
   const [input, setInput] = useState("");
@@ -111,6 +109,23 @@ export default function ChatWindow({ userId, input: externalInput, onInputChange
     product: string;
     plan: string;
   } | null>(null);
+
+  // Set initial timestamp on the client only to avoid SSR time formatting differences
+  useEffect(() => {
+    setMessages((prev) =>
+      prev.map((msg, idx) =>
+        idx === 0 && msg.timestamp === ""
+          ? {
+              ...msg,
+              timestamp: new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            }
+          : msg
+      )
+    );
+  }, []);
 
   // Update internal input state when external input changes
   useEffect(() => {
