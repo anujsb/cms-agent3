@@ -1,7 +1,6 @@
 // app/agent/page.tsx
 "use client";
 
-import ChatWindow from "@/components/ChatWindow";
 import UserSelector from "@/components/UserSelector";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -159,32 +158,32 @@ export default function AgentHome() {
   };
 
   return (
-    <main className="flex flex-col bg-gradient-to-br from-gray-50 to-blue-50 p-4 md:p-6 min-h-screen">
+    <main className="flex flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4 md:p-6 min-h-screen text-slate-50">
       <div className="mx-auto w-full max-w-6xl">
-        <header className="flex justify-between items-center mb-6">
+        <header className="flex justify-between items-center mb-6 md:mb-8">
           <div>
-            <h1 className="mb-2 font-bold text-gray-800 text-2xl">
+            <h1 className="mb-1 font-semibold text-slate-50 text-2xl md:text-3xl tracking-tight">
               Customer Support Workspace
             </h1>
-            <p className="text-gray-500">
-              View customer context, top issues, and chat with AI side-by-side.
+            <p className="text-slate-300/90 text-xs md:text-sm">
+              Switch between customers, see their history at a glance, and collaborate with your AI copilot in the same view.
             </p>
           </div>
         </header>
 
-        <div className="flex md:flex-row flex-col gap-2">
-          <div className="pr-4 border-gray-300 border-r w-full md:w-1/3">
-            <Card className="shadow-lg mb-6 border-gray-200 rounded-xl overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-700 p-4 text-white">
+        <div className="flex flex-col gap-4 lg:gap-6">
+          <div className="w-full lg:w-[72%]">
+            <Card className="bg-slate-900/70 shadow-xl backdrop-blur mb-4 border-slate-800/80 rounded-2xl overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-700 px-4 py-3 text-white">
                 <CardTitle className="flex items-center">
                   <UserCircle2 className="mr-2" size={20} />
                   <span>Agent console</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-4">
+              <CardContent className="space-y-4 p-4">
                 <div className="mb-6">
-                  <h3 className="mb-2 font-semibold text-gray-500 text-xs uppercase tracking-wider">
-                    Select customer profile
+                  <h3 className="mb-2 font-semibold text-[0.7rem] text-slate-300 uppercase tracking-[0.18em]">
+                    Select customer
                   </h3>
                   <UserSelector onUserChange={handleUserChange} />
                 </div>
@@ -201,36 +200,38 @@ export default function AgentHome() {
                     </div>
                   </div>
                 ) : user ? (
-                  <div className="space-y-6">
-                    <div className="bg-white shadow-sm p-4 border border-gray-100 rounded-xl">
-                      <h2 className="flex items-center font-bold text-gray-800 text-lg">
-                        <UserCircle2 size={20} className="mr-2 text-blue-600" />
+                  <div className="space-y-5">
+                    <div className="bg-slate-900/80 shadow-sm p-4 border border-slate-800/80 rounded-xl">
+                      <h2 className="flex items-center font-semibold text-slate-50 text-base">
+                        <UserCircle2 size={20} className="mr-2 text-blue-400" />
                         {user.name}
                       </h2>
-                      <div className="flex items-center bg-gray-50 mt-2 p-2 rounded-md text-gray-600">
-                        <Phone size={16} className="mr-2 text-blue-600" />
-                        <span className="font-medium">{user.phoneNumber}</span>
+                      <div className="flex items-center bg-slate-900 mt-2 px-3 py-2 border border-slate-800/80 rounded-md text-slate-300">
+                        <Phone size={14} className="mr-2 text-blue-400" />
+                        <span className="font-medium text-xs">
+                          {user.phoneNumber}
+                        </span>
                       </div>
 
                       <div className="mt-4">
-                        <h3 className="flex items-center mb-2 font-semibold text-gray-500 text-xs uppercase tracking-wider">
+                        <h3 className="flex items-center mb-2 font-semibold text-[0.7rem] text-slate-400 uppercase tracking-[0.18em]">
                           <ShieldCheck
                             size={14}
-                            className="mr-1 text-blue-600"
+                            className="mr-1 text-blue-400"
                           />
                           Active plan
                         </h3>
                         {user.orders.find((o) => o.status === "Active") ? (
-                          <div className="bg-blue-50 p-4 border border-blue-100 rounded-lg">
+                          <div className="bg-blue-500/10 p-3 border border-blue-500/30 rounded-lg">
                             <div className="flex justify-between items-center">
-                              <span className="font-medium text-gray-800">
+                              <span className="font-medium text-slate-50 text-sm">
                                 {
                                   user.orders.find((o) => o.status === "Active")
                                     ?.productName
                                 }
                               </span>
 
-                              <div>
+                              <div className="font-medium text-blue-100 text-xs">
                                 {
                                   user.orders.find((o) => o.status === "Active")
                                     ?.plan
@@ -238,10 +239,10 @@ export default function AgentHome() {
                               </div>
                             </div>
                             <div className="flex justify-between items-center mt-2">
-                              <div className="flex items-center text-gray-600 text-sm">
+                              <div className="flex items-center text-[0.7rem] text-slate-200">
                                 <Calendar
                                   size={14}
-                                  className="mr-1 text-blue-600"
+                                  className="mr-1 text-blue-300"
                                 />
                                 <span>
                                   From{" "}
@@ -261,14 +262,16 @@ export default function AgentHome() {
                                     : ""}
                                 </span>
                               </div>
-                              <Badge className="bg-emerald-100 border border-emerald-200 text-emerald-800">
+                              <Badge className="bg-emerald-400/10 border border-emerald-300/40 text-[0.65rem] text-emerald-200">
                                 Active
                               </Badge>
                             </div>
                           </div>
                         ) : (
-                          <div className="bg-gray-50 p-4 border border-gray-100 rounded-lg text-center">
-                            <p className="text-gray-500">No active plan</p>
+                          <div className="bg-slate-900 p-4 border border-slate-800/80 rounded-lg text-center">
+                            <p className="text-slate-400 text-xs">
+                              No active plan
+                            </p>
                           </div>
                         )}
                       </div>
@@ -277,30 +280,26 @@ export default function AgentHome() {
                     <TopIssuesSummary userId={selectedUser} />
 
                     <Tabs defaultValue="orders" className="w-full">
-                      <TabsList className="grid grid-cols-2 bg-gray-100 mb-4">
+                      <TabsList className="grid grid-cols-2 bg-slate-900/80 mb-3 rounded-lg">
                         <TabsTrigger
                           value="orders"
-                          className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md"
+                          className="data-[state=active]:bg-slate-800 data-[state=active]:shadow-sm rounded-md text-slate-300 text-xs"
                         >
-                          <Package size={16} className="mr-2" />
+                          <Package size={14} className="mr-1.5" />
                           Orders
                         </TabsTrigger>
                         <TabsTrigger
                           value="incidents"
-                          className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md"
+                          className="data-[state=active]:bg-slate-800 data-[state=active]:shadow-sm rounded-md text-slate-300 text-xs"
                         >
-                          <History size={16} className="mr-2" />
+                          <History size={14} className="mr-1.5" />
                           Support history
                         </TabsTrigger>
                       </TabsList>
 
                       <TabsContent value="orders" className="space-y-3 mt-0">
                         {ordersWithProducts.length > 0 ? (
-                          <Accordion
-                            type="single"
-                            collapsible
-                            className="w-full"
-                          >
+                          <Accordion type="single" collapsible className="w-full">
                             {ordersWithProducts.map((order) => (
                               <AccordionItem
                                 key={order.orderId}
@@ -309,10 +308,10 @@ export default function AgentHome() {
                                 <AccordionTrigger className="hover:no-underline">
                                   <div className="flex justify-between items-center pr-4 w-full">
                                     <div className="flex flex-col items-start">
-                                      <span className="font-semibold text-gray-800">
+                                      <span className="font-semibold text-slate-50 text-sm">
                                         {order.orderId}
                                       </span>
-                                      <span className="text-gray-500 text-xs">
+                                      <span className="text-[0.7rem] text-slate-400">
                                         Created: {order.createDate}
                                       </span>
                                     </div>
@@ -330,20 +329,20 @@ export default function AgentHome() {
                                     {order.products.map((product) => (
                                       <div
                                         key={product.orderProductId}
-                                        className="bg-gray-50 p-3 border border-gray-100 rounded-lg"
+                                        className="bg-slate-900 p-3 border border-slate-800/80 rounded-lg"
                                       >
                                         <div className="flex justify-between items-center">
-                                          <span className="font-medium text-gray-700">
+                                          <span className="font-medium text-slate-100 text-sm">
                                             {product.productName}
                                           </span>
-                                          <span className="text-gray-500 text-xs">
+                                          <span className="text-[0.7rem] text-slate-500">
                                             ID: {product.orderProductId}
                                           </span>
                                         </div>
-                                        <div className="flex items-center mt-1 text-gray-600 text-xs">
+                                        <div className="flex items-center mt-1 text-[0.7rem] text-slate-300">
                                           <Calendar
                                             size={14}
-                                            className="mr-1 text-blue-600"
+                                            className="mr-1 text-blue-300"
                                           />
                                           <span>
                                             {product.inServiceDate}
@@ -354,7 +353,7 @@ export default function AgentHome() {
                                           <span className="mx-2 text-gray-400">
                                             •
                                           </span>
-                                          <span className="text-gray-600">
+                                          <span className="text-slate-300">
                                             Plan: {product.plan}
                                           </span>
                                         </div>
@@ -366,12 +365,14 @@ export default function AgentHome() {
                             ))}
                           </Accordion>
                         ) : (
-                          <div className="bg-white p-6 border border-gray-100 rounded-xl text-center">
+                          <div className="bg-slate-900 p-6 border border-slate-800/80 rounded-xl text-center">
                             <Package
                               size={24}
-                              className="mx-auto mb-2 text-gray-400"
+                              className="mx-auto mb-2 text-slate-500"
                             />
-                            <p className="text-gray-500">No orders found</p>
+                            <p className="text-slate-400 text-xs">
+                              No orders found
+                            </p>
                           </div>
                         )}
                       </TabsContent>
@@ -381,11 +382,11 @@ export default function AgentHome() {
                           user.incidents.map((incident) => (
                             <div
                               key={incident.incidentId}
-                              className="bg-white shadow-sm hover:shadow-md p-4 border border-gray-100 rounded-xl transition-shadow duration-200"
+                              className="bg-slate-900 shadow-sm hover:shadow-md p-4 border border-slate-800/80 rounded-xl transition-shadow duration-200"
                             >
                               <div className="flex justify-between items-center">
                                 <span
-                                  className="font-semibold text-gray-800 truncate"
+                                  className="font-semibold text-slate-50 text-sm truncate"
                                   title={incident.description}
                                 >
                                   {incident.description.length > 40
@@ -396,15 +397,15 @@ export default function AgentHome() {
                                 <Badge
                                   className={`${getStatusColor(
                                     incident.status
-                                  )} border whitespace-nowrap ml-2`}
+                                  )} border whitespace-nowrap ml-2 text-[0.65rem]`}
                                 >
                                   {incident.status}
                                 </Badge>
                               </div>
-                              <div className="flex items-center mt-2 text-gray-600 text-xs">
+                              <div className="flex items-center mt-2 text-[0.7rem] text-slate-300">
                                 <History
                                   size={14}
-                                  className="mr-2 text-blue-600"
+                                  className="mr-2 text-blue-300"
                                 />
                                 <span className="mr-2">
                                   {incident.incidentId}
@@ -419,14 +420,12 @@ export default function AgentHome() {
                             </div>
                           ))
                         ) : (
-                          <div className="bg-white p-6 border border-gray-100 rounded-xl text-center">
+                          <div className="bg-slate-900 p-6 border border-slate-800/80 rounded-xl text-center">
                             <History
                               size={24}
-                              className="mx-auto mb-2 text-gray-400"
+                              className="mx-auto mb-2 text-slate-500"
                             />
-                            <p className="text-gray-500">
-                              No support incidents found
-                            </p>
+                            <p className="text-slate-400 text-xs">No support incidents found</p>
                           </div>
                         )}
                       </TabsContent>
@@ -442,44 +441,19 @@ export default function AgentHome() {
                     <p className="text-red-600">Failed to load customer details</p>
                   </div>
                 ) : (
-                  <div className="bg-blue-50 p-6 border border-blue-100 rounded-xl text-center">
+                  <div className="bg-slate-900 p-6 border border-slate-800/80 rounded-xl text-center">
                     <UserCircle2
                       size={32}
-                      className="mx-auto mb-2 text-blue-600"
+                      className="mx-auto mb-2 text-blue-400"
                     />
-                    <p className="text-blue-700">
-                      Select a customer to view details
-                    </p>
+                    <p className="text-slate-200 text-sm">Select a customer to view details</p>
                   </div>
                 )}
               </CardContent>
             </Card>
           </div>
 
-          <div className="pl-2 w-full md:w-2/3">
-            {selectedUser ? (
-              <ChatWindow
-                userId={selectedUser}
-                input={input}
-                onInputChange={setInput}
-              />
-            ) : (
-              <Card className="flex justify-center items-center shadow-lg p-8 border-gray-200 rounded-xl h-full">
-                <div className="p-6 text-center">
-                  <div className="inline-flex justify-center items-center bg-blue-100 mb-4 p-6 rounded-full">
-                    <MessageSquare size={32} className="text-blue-600" />
-                  </div>
-                  <h2 className="mb-3 font-bold text-gray-800 text-xl">
-                    Agent-side AI assistant
-                  </h2>
-                  <p className="max-w-md text-gray-500">
-                    Select a customer from the workspace sidebar to start a guided
-                    AI conversation with full context.
-                  </p>
-                </div>
-              </Card>
-            )}
-          </div>
+          {/* Chatbot UI removed from agent view on purpose */}
         </div>
       </div>
     </main>
